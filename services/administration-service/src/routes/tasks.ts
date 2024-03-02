@@ -20,7 +20,7 @@ tasksRouter.get("/", isAuthenticatedMiddleware, async (req, res, next) => {
   return res.send(tasks);
 });
 
-// Create user
+// Create task
 tasksRouter.post("/", isAuthenticatedMiddleware, async (req, res, next) => {
   if (!req.user) return next(new AuthenticationError());
 

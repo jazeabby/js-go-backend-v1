@@ -9,7 +9,8 @@
     "migrate:dry": "prisma migrate dev --create-only",
     "migrate": "prisma migrate dev",
     "start": "tsx src/index.ts",
-    "dev": "tsx --watch src/index.ts"
+    "dev": "tsx --watch src/index.ts",
+    "consume": "tsx src/consumer/taskConsumer.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.8.1",
