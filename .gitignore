@@ -1,0 +1,8 @@
+node_modules
+build
+
+.venv
+*egg-info
+__pycache__
+.mypy_cache
+.ruff_cache
