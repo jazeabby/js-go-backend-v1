@@ -9,29 +9,20 @@ const kafka = new Kafka({
   brokers: [KAFKA_URI],
 });
 
-export const consumer = kafka.consumer({
-    groupId:"tasks-service"
-});
+async function init() {
+  const consumer = kafka.consumer({ groupId: "tasks-service-2" });
+  await consumer.connect();
 
-consumer.connect();
+  await consumer.subscribe({ topics: ["task.updated"], fromBeginning: true });
 
-consumer.on("consumer.connect", () => {
-  logger.success(`Kafka consumer connected to ${KAFKA_URI}`);
-});
-
-consumer.on("consumer.disconnect", () => {
-  logger.warn("Kafka consumer disconnected.");
-});
-
-export const consumeMessage = async () => {
-  try {
-    const consumerSubscribeTopics = {
-        topics: [
-            "task.updated"
-        ]
-    }
-    await consumer.subscribe(consumerSubscribeTopics).then( (message) => async function(message: string) {
-        let task = JSON.parse(message);
+  await consumer.run({
+    eachMessage: async ({ topic, partition, message, heartbeat, pause }) => {
+      console.log(
+        `[${topic}]: PART:${partition}:`,
+        message.value.toString()
+      );
+      let messageValue = message.value?.toString() ?? "";
+        let task = JSON.parse(messageValue);
         if (task.id && task.status) {
 
             const updateData = {
@@ -46,18 +37,18 @@ export const consumeMessage = async () => {
                 logger.error(error);
             }
         }
-    });
-  } catch (error) {
-    logger.error(error);
-  }
-};
+    },
+  });
 
-process.on("SIGINT", async () => {
-  logger.warn("Caught SIGINT signal, disconnecting Kafka consumer.");
-  await consumer.disconnect();
-});
+  process.on("SIGINT", async () => {
+    logger.warn("Caught SIGINT signal, disconnecting Kafka consumer.");
+    await consumer.disconnect();
+  });
 
-process.on("SIGTERM", async () => {
-  logger.warn("Caught SIGTERM signal, disconnecting Kafka consumer.");
-  await consumer.disconnect();
-});
+  process.on("SIGTERM", async () => {
+    logger.warn("Caught SIGTERM signal, disconnecting Kafka consumer.");
+    await consumer.disconnect();
+  });
+}
+
+init();
