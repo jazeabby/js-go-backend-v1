@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createUser } from "../lib/users";
 import { isAuthenticatedMiddleware } from "./auth";
 import { AuthenticationError } from "../helpers/errors";
+import { login } from "../lib/auth";
 
 export const usersRouter = express.Router();
 
@@ -28,6 +29,24 @@ usersRouter.post("/", async (req, res, next) => {
     const user = await createUser(email, password);
 
     return res.status(201).send(user);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+
+usersRouter.post("/login", async (req, res, next) => {
+  const body = req.body;
+
+  try {
+    const { email, password } = z
+      .object({
+        email: z.string().email(),
+        password: z.string().min(8),
+      })
+      .parse(body);
+
+    return res.status(201).send({ ...(await login(email, password)) });
   } catch (error) {
     return next(error);
   }
