@@ -18,6 +18,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -111,23 +112,8 @@ func CreateProducers(bootstrapServers string) (*kafka.Producer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create producer: %s", err)
 	}
-
-	go func() {
-		for e := range p.Events() {
-			switch ev := e.(type) {
-			case *kafka.Message:
-				handleMessageEvent(ev)
-			case kafka.Error:
-				fmt.Printf("Error: %v\n", ev)
-			default:
-				fmt.Printf("Ignored event: %s\n", ev)
-			}
-		}
-	}()
-
 	return p, nil
 }
-
 
 // SendJson sends a JSON payload to a Kafka topic using the provided Kafka producer instance.
 func SendJson(producer *kafka.Producer, topic string, payload interface{}) error {
@@ -139,7 +125,7 @@ func SendJson(producer *kafka.Producer, topic string, payload interface{}) error
 
 	// Send the JSON payload to Kafka
 	err = producer.Produce(&kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: 0},
 		Value:          jsonPayload,
 	}, nil)
 	if err != nil {

@@ -1,36 +1,36 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"time"
 	"math/rand"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
 func handler(msg *kafka.Message) {
-	fmt.Printf("Handler: Message on %s: %s\n", msg.TopicPartition, string(msg.Value))
+	fmt.Printf("Handler: Message on %s: %s\n", *msg.TopicPartition.Topic, string(msg.Value))
 
-	switch e := msg.TopicPartition {
-	case "task.created":
-		go runTask(msg);
-	}
+	go runTask(msg)
 }
 
 // TaskPayload represents the structure of the JSON payload.
 type TaskPayload struct {
-	Message string `json:"message"`
+	Message TaskPayloadToSend `json:"message"`
+}
+type TaskPayloadToSend struct {
+	Id     string `json:"id"`
+	Status string `json:"status"`
 }
 
 func runTask(msg *kafka.Message) {
-	
-	var payload TaskPayload
-	err := json.Unmarshal(m.Value, &payload)
-	if err != nil {
-		fmt.Printf("Failed to decode JSON: %v\n", err)
-		return
-	}
 
-	producer, err := CreateProducers(bootstrapServers)
+	fmt.Printf("Inside Run Task\n")
+
+	producer, err := CreateProducers(os.Getenv("KAFKA_URI"))
 	if err != nil {
 		fmt.Printf("Error creating producer: %v\n", err)
 		os.Exit(1)
@@ -38,50 +38,61 @@ func runTask(msg *kafka.Message) {
 
 	defer producer.Close()
 
-	// task updated to running
-	value := {
-		"id": payload.Message.id,
-		"status": "RUNNING"
+	var payload TaskPayloadToSend
+	err = json.NewDecoder(strings.NewReader(string(msg.Value))).Decode(&payload)
+
+	if err != nil {
+		fmt.Printf("Failed to decode JSON: %v\n", err)
+		return
 	}
-	_, err := SendJSON(producer, "task.updated", value)
-	
+
+	// task updated to running
+	taskPayloadToSend := TaskPayloadToSend{
+		Id:     payload.Id,
+		Status: "RUNNING",
+	}
+	fmt.Println("Task Payload: ", taskPayloadToSend)
+
+	err = SendJson(producer, "task.updated", taskPayloadToSend)
+
 	if err != nil {
 		fmt.Printf("Error producing message: %v\n", err)
 	}
 
 	// Wait for a short time to allow the goroutine to execute
-	// Seed the random number generator
-    rand.Seed(time.Now().UnixNano())
+	source := rand.NewSource(time.Now().UnixNano())
+	rng := rand.New(source)
 
-    // Generate a random duration between 0 and 5 seconds
-    randomDuration := time.Duration(rand.Intn(5)) * time.Second
+	// Generate a random duration between 0 and 5 seconds
+	randomDuration := time.Duration(rng.Intn(5)) * time.Second
 
-    fmt.Printf("Random duration: %s\n", randomDuration)
-	
+	fmt.Printf("Random duration: %s\n", randomDuration)
+
 	// sleep with random duration
 	time.Sleep(100 * randomDuration)
 
 	// Define the two values
-	values := []string{"success", "failure"}
+	values := []string{"SUCCESS", "FAILURE"}
 
 	// Generate a random index
-	randomIndex := rand.Intn(len(values))
-	// Choose the value at the random index
-	randomValue := values[randomIndex]
-	fmt.Println("Randomly chosen value:", randomValue)
+	randomIndex := rng.Intn(len(values))
+	randomStatus := values[randomIndex]
+	fmt.Println("Randomly chosen value:", randomStatus)
 
 	// task updated to running
-	value := {
-		"id": payload.Message.id,
-		"status": randomValue
-	}
-	_, err := SendJson(producer, "task.updated", value)
-	
+	taskPayloadToSend.Status = randomStatus
+
+	fmt.Println("JSON Payload:", taskPayloadToSend)
+	err = SendJson(producer, "task.updated", taskPayloadToSend)
+
 	if err != nil {
 		fmt.Printf("Error producing message: %v\n", err)
 	}
+	fmt.Println("Payload Sent")
 }
 
 func main() {
+	forever := make(chan bool)
 	Consume([]string{"users.created", "task.created"}, handler)
+	<-forever
 }
