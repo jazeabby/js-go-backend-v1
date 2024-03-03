@@ -39,7 +39,7 @@ tasksRouter.post("/", isAuthenticatedMiddleware, async (req, res, next) => {
 
     const task = await createTask(req.user.id, description);
 
-    return res.status(201).send({description});
+    return res.status(201).send(task);
   } catch (error) {
     return next(error);
   }
